@@ -1,0 +1,29 @@
+---
+- name: Basic SFTP File Monitoring
+  hosts: localhost
+  sources:
+    - mycompany.sftp_eda.sftp_file_monitor:
+        host: "{{ sftp_host }}"
+        username: "{{ sftp_username }}"
+        password: "{{ sftp_password }}"
+        monitor_path: "/opt/sftp/SFTPUser/"
+        poll_interval: 60
+
+  rules:
+    - name: Log new file arrival
+      condition: event.sftp_file_monitor.event_type == "file_created"
+      action:
+        debug:
+          msg: "New file detected: {{ event.sftp_file_monitor.file.filename }} ({{ event.sftp_file_monitor.file.size_human }})"
+
+    - name: Process text files
+      condition: >
+        event.sftp_file_monitor.event_type == "file_created" and
+        event.sftp_file_monitor.file.extension == ".txt"
+      action:
+        run_playbook:
+          name: process_text_file.yml
+          extra_vars:
+            file_path: "{{ event.sftp_file_monitor.file.path }}"
+            file_name: "{{ event.sftp_file_monitor.file.filename }}"
+            sftp_host: "{{ event.sftp_file_monitor.sftp_server.host }}"
